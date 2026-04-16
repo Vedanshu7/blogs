@@ -1,12 +1,12 @@
 # The Hidden Costs of LLM Inference: And How to Fix Them in Python
 
-*Five problems that quietly drain your API budget, and the middleware layer I built to solve them.*
+*Four problems that quietly drain your API budget, and the middleware layer I built to solve them.*
 
 ---
 
 Every LLM API call has a price tag. For a toy project, you don't notice. At scale, or even during serious development, you start to: redundant calls for semantically identical questions, conversations ballooning past context limits, no guardrails on runaway spend, and zero visibility into what your cache is actually doing for you.
 
-I built [llm-inference-toolkit](https://github.com/Vedanshu7/llm-inference-toolkit) to address all five. It's a middleware layer that sits in front of any LLM provider (via litellm) and adds a semantic response cache, a context compression engine, per-conversation cost guardrails, and an observability API. This post walks through each problem, how the toolkit solves it, and what the real numbers look like.
+I built [llm-inference-toolkit](https://github.com/Vedanshu7/llm-inference-toolkit) to address all four. It's a middleware layer that sits in front of any LLM provider (via litellm) and adds a semantic response cache, a context compression engine, per-conversation cost guardrails, and an observability API. This post walks through each problem, how the toolkit solves it, and what the real numbers look like.
 
 ---
 
@@ -245,13 +245,14 @@ Clusters reveal what your users are actually asking. A cluster with 7 members an
 Every request goes through the same pipeline, whether it's a stateless chat completion or a stateful conversation turn:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'mainBkg': '#ffffff', 'primaryColor': '#e8f4fd', 'primaryTextColor': '#1a1a1a', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'edgeLabelBackground': '#ffffff'}}}%%
 flowchart TD
-    A[Request] --> B[SemanticCache.get]
-    B -->|HIT| C[return cached response]
-    B -->|MISS| D[ContextCompressor.compress]
-    D --> E[litellm.acompletion]
-    E --> F[SemanticCache.set]
-    F --> G[return response + metadata]
+    A[Request] --> B[Check Semantic Cache]
+    B -->|HIT| C[Return Cached Response]
+    B -->|MISS| D[Compress Context]
+    D --> E[Call LLM]
+    E --> F[Store In Cache]
+    F --> G[Return Response + Metadata]
 ```
 
 The storage layer is pluggable. `InMemoryStore` is fast, zero-config, and appropriate for single-instance deployments or development. `RedisStore` gives you persistence and distributed cache sharing across multiple API server instances. Both implement the same `CacheStore` protocol, so switching is a one-line config change:

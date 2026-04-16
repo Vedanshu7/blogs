@@ -244,24 +244,14 @@ Clusters reveal what your users are actually asking. A cluster with 7 members an
 
 Every request goes through the same pipeline, whether it's a stateless chat completion or a stateful conversation turn:
 
-```
-Request
-  |
-  +-> SemanticCache.get(prompt)
-  |       +- HIT  ------------------------------> return cached response
-  |       \- MISS
-  |             |
-  |             v
-  |       ContextCompressor.compress(messages)
-  |             |
-  |             v
-  |       litellm.acompletion(model, messages)
-  |             |
-  |             v
-  |       SemanticCache.set(prompt, response, cost)
-  |             |
-  |             v
-  \---------------------------------------------> return response + metadata
+```mermaid
+flowchart TD
+    A[Request] --> B[SemanticCache.get]
+    B -->|HIT| C[return cached response]
+    B -->|MISS| D[ContextCompressor.compress]
+    D --> E[litellm.acompletion]
+    E --> F[SemanticCache.set]
+    F --> G[return response + metadata]
 ```
 
 The storage layer is pluggable. `InMemoryStore` is fast, zero-config, and appropriate for single-instance deployments or development. `RedisStore` gives you persistence and distributed cache sharing across multiple API server instances. Both implement the same `CacheStore` protocol, so switching is a one-line config change:

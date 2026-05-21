@@ -1,11 +1,6 @@
 # Stop Rewriting LLM Code — llmbridge Gives Go One Interface for All of It
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/Vedanshu7/llmbridge.svg)](https://pkg.go.dev/github.com/Vedanshu7/llmbridge)
-[![CI](https://github.com/Vedanshu7/llmbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Vedanshu7/llmbridge/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/Vedanshu7/llmbridge)](https://goreportcard.com/report/github.com/Vedanshu7/llmbridge)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Vedanshu7/llmbridge/blob/main/LICENSE)
-
-**GitHub:** [github.com/Vedanshu7/llmbridge](https://github.com/Vedanshu7/llmbridge) · **Docs:** [pkg.go.dev/github.com/Vedanshu7/llmbridge](https://pkg.go.dev/github.com/Vedanshu7/llmbridge)
+**GitHub:** [github.com/Vedanshu7/llmbridge](https://github.com/Vedanshu7/llmbridge) · **Docs:** [pkg.go.dev/github.com/Vedanshu7/llmbridge](https://pkg.go.dev/github.com/Vedanshu7/llmbridge) · **License:** MIT · **Go Report:** [A+](https://goreportcard.com/report/github.com/Vedanshu7/llmbridge)
 
 ![Abstract blue background with connected technology-related icons](https://plus.unsplash.com/premium_photo-1764691292167-7263c8b464c0?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0)
 *Photo by [Getty Images](https://unsplash.com/@gettyimages) on [Unsplash](https://unsplash.com/photos/abstract-blue-background-with-connected-technology-related-icons-1IJnGLTv7SU)*
@@ -106,20 +101,18 @@ Everything below that line — the `Complete` call, the error handling, the stre
 
 **Supported providers out of the box:**
 
-| Provider | Package |
-|---|---|
-| OpenAI | `llms/openai` |
-| Anthropic Claude | `llms/anthropic` |
-| Google Gemini | `llms/gemini` |
-| AWS Bedrock | `llms/bedrock` |
-| Azure OpenAI | `llms/azure` |
-| Cohere Command | `llms/cohere` |
-| Groq | `llms/compatible` |
-| Ollama (local) | `llms/compatible` |
-| LM Studio | `llms/compatible` |
-| Together AI | `llms/compatible` |
-| xAI / Grok | `llms/compatible` |
-| Any OpenAI-compatible endpoint | `llms/compatible` |
+- **OpenAI** (`llms/openai`) — GPT-4o, GPT-4o mini, and all OpenAI models
+- **Anthropic Claude** (`llms/anthropic`) — Claude 4 Opus, Sonnet, Haiku
+- **Google Gemini** (`llms/gemini`) — Gemini 2.0 Flash, Gemini 1.5 Pro
+- **AWS Bedrock** (`llms/bedrock`) — Titan, Claude on Bedrock, Llama on Bedrock
+- **Azure OpenAI** (`llms/azure`) — any model deployed on Azure OpenAI Service
+- **Cohere Command** (`llms/cohere`) — Command R, Command R+
+- **Groq** (`llms/compatible`) — fast inference for Llama, Mixtral, Gemma
+- **Ollama** (`llms/compatible`) — run any model locally, no API key needed
+- **LM Studio** (`llms/compatible`) — local model server
+- **Together AI** (`llms/compatible`) — hosted open-source models
+- **xAI / Grok** (`llms/compatible`) — Grok-2 and Grok-2 mini
+- **Any OpenAI-compatible endpoint** (`llms/compatible`) — self-hosted or custom inference servers
 
 
 ## Streaming — Same API, Every Provider
@@ -281,14 +274,12 @@ If the primary provider is down, rate-limited, or trips the circuit breaker, the
 
 **Six routing strategies:**
 
-| Strategy | When to use |
-|---|---|
-| `PriorityOrder` | Always try your preferred provider first, fall back on failure |
-| `RoundRobin` | Distribute load evenly across providers |
-| `LeastLatency` | Route to whichever provider responded fastest recently |
-| `LeastBusy` | Route to the provider with fewest in-flight requests |
-| `CostBased` | Always route to the cheapest provider that can handle the request |
-| `Weighted` | Custom traffic split — e.g. 70% OpenAI, 30% Anthropic |
+- **PriorityOrder** — always try your preferred provider first, fall back on failure
+- **RoundRobin** — distribute load evenly across all providers
+- **LeastLatency** — route to whichever provider responded fastest recently
+- **LeastBusy** — route to the provider with the fewest in-flight requests
+- **CostBased** — always route to the cheapest provider that can handle the request
+- **Weighted** — custom traffic split, for example 70% OpenAI and 30% Anthropic
 
 The `WithContextWindowFallback` option is especially useful during model transitions: if a user's conversation exceeds the primary model's context limit, the router automatically re-routes to a provider with a larger window rather than returning an error.
 
@@ -621,14 +612,12 @@ llmbridge has full observability support built in at three levels.
 
 **Prometheus metrics** are exposed at `/metrics` by the proxy server and are ready to scrape into Grafana. The key metrics available:
 
-| Metric | Description |
-|---|---|
-| `llmbridge_requests_total` | Total requests by provider, model, and status |
-| `llmbridge_request_duration_seconds` | Latency histogram per provider and model |
-| `llmbridge_tokens_total` | Token usage counters split by prompt and completion |
-| `llmbridge_cost_usd_total` | Cumulative spend per provider, model, and key |
-| `llmbridge_cache_hits_total` | Cache hit and miss counts |
-| `llmbridge_circuit_breaker_state` | Circuit breaker open/closed state per provider |
+- `llmbridge_requests_total` — total requests by provider, model, and status
+- `llmbridge_request_duration_seconds` — latency histogram per provider and model
+- `llmbridge_tokens_total` — token usage counters split by prompt and completion
+- `llmbridge_cost_usd_total` — cumulative spend per provider, model, and key
+- `llmbridge_cache_hits_total` — cache hit and miss counts
+- `llmbridge_circuit_breaker_state` — circuit breaker open/closed state per provider
 
 **Langfuse tracing** gives you full request and response traces with token-level detail, latency breakdowns, and cost attribution. Enable it by registering the Langfuse callback:
 
@@ -777,10 +766,8 @@ func main() {
 
 The next time a new model drops — or your primary provider has an outage — you're one line away from the fix. No migrations, no rewrites, no weekend incidents.
 
-| Resource | Link |
-|---|---|
-| GitHub | [github.com/Vedanshu7/llmbridge](https://github.com/Vedanshu7/llmbridge) |
-| Go Docs | [pkg.go.dev/github.com/Vedanshu7/llmbridge](https://pkg.go.dev/github.com/Vedanshu7/llmbridge) |
-| Go Report Card | [goreportcard.com/report/github.com/Vedanshu7/llmbridge](https://goreportcard.com/report/github.com/Vedanshu7/llmbridge) |
-| Issues / Feature Requests | [github.com/Vedanshu7/llmbridge/issues](https://github.com/Vedanshu7/llmbridge/issues) |
-| Contributing Guide | [github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md](https://github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md) |
+- **GitHub:** [github.com/Vedanshu7/llmbridge](https://github.com/Vedanshu7/llmbridge)
+- **Go Docs:** [pkg.go.dev/github.com/Vedanshu7/llmbridge](https://pkg.go.dev/github.com/Vedanshu7/llmbridge)
+- **Go Report Card:** [goreportcard.com/report/github.com/Vedanshu7/llmbridge](https://goreportcard.com/report/github.com/Vedanshu7/llmbridge)
+- **Issues and Feature Requests:** [github.com/Vedanshu7/llmbridge/issues](https://github.com/Vedanshu7/llmbridge/issues)
+- **Contributing Guide:** [github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md](https://github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md)

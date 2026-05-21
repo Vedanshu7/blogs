@@ -598,6 +598,132 @@ func (p *Provider) Complete(ctx context.Context, req types.Request) (*types.Resp
 Optionally implement `base.Streamer` for streaming, `base.EmbedProvider` for embeddings, or `base.ImageGenerator` for image generation. Then open a PR — the contribution guide is in [CONTRIBUTING.md](https://github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md).
 
 
+## Observability — Know Exactly What Your LLM Is Doing
+
+Shipping an LLM feature is not a one-time event. You need to know what's happening after it goes live: which models are being called, how long they're taking, what they cost, and whether anything is failing silently.
+
+llmbridge has full observability support built in at three levels.
+
+**Structured JSON access logs** are written for every request. Each log entry includes the provider, model, latency, prompt tokens, completion tokens, estimated cost, and any error:
+
+```json
+{
+  "time": "2026-05-20T14:32:01Z",
+  "provider": "anthropic",
+  "model": "claude-opus-4-7",
+  "latency_ms": 843,
+  "prompt_tokens": 312,
+  "completion_tokens": 189,
+  "cost_usd": 0.004821,
+  "error": null
+}
+```
+
+**Prometheus metrics** are exposed at `/metrics` by the proxy server and are ready to scrape into Grafana. The key metrics available:
+
+| Metric | Description |
+|---|---|
+| `llmbridge_requests_total` | Total requests by provider, model, and status |
+| `llmbridge_request_duration_seconds` | Latency histogram per provider and model |
+| `llmbridge_tokens_total` | Token usage counters split by prompt and completion |
+| `llmbridge_cost_usd_total` | Cumulative spend per provider, model, and key |
+| `llmbridge_cache_hits_total` | Cache hit and miss counts |
+| `llmbridge_circuit_breaker_state` | Circuit breaker open/closed state per provider |
+
+**Langfuse tracing** gives you full request and response traces with token-level detail, latency breakdowns, and cost attribution. Enable it by registering the Langfuse callback:
+
+```go
+import "github.com/Vedanshu7/llmbridge/callbacks"
+
+cb := callbacks.NewLangfuseCallback(
+    os.Getenv("LANGFUSE_PUBLIC_KEY"),
+    os.Getenv("LANGFUSE_SECRET_KEY"),
+)
+
+provider := llmbridge.WithCallbacks(
+    openai.New("gpt-4o", key),
+    cb,
+)
+
+// Every call now appears as a trace in your Langfuse dashboard
+resp, err := provider.Complete(ctx, req)
+```
+
+You can also register a **webhook callback** to push events to any external system — a data warehouse, a Slack channel, a custom alerting pipeline:
+
+```go
+cb := callbacks.NewWebhookCallback("https://your-service.com/llm-events",
+    callbacks.WithSecret("webhook-signing-secret"),
+)
+```
+
+Between JSON logs, Prometheus, Langfuse, and webhooks, you have complete visibility into what your LLM layer is doing in production — without instrumenting every call site manually.
+
+
+## What Is Coming Next
+
+llmbridge is actively developed. Here is what is on the roadmap:
+
+**More providers.** The provider list is growing. Coming soon:
+
+- **Mistral AI** — Mistral Large and Mixtral models via native API
+- **Perplexity AI** — search-augmented models with citation support
+- **Fireworks AI** — fast open-source model inference
+- **Replicate** — community and fine-tuned models
+- **Vertex AI** — Google Cloud's managed model platform (Gemini, Claude on Vertex, Llama on Vertex)
+- **IBM watsonx** — enterprise AI for regulated industries
+- **DeepSeek** — high-performance open models gaining rapid adoption
+
+If a provider you need is not on this list, you can add it yourself. The interface is simple, and we review new provider PRs quickly.
+
+**New features in active development:**
+
+- **Prompt versioning and A/B testing** — manage prompt versions, run experiments, and compare outputs across models from a single config
+- **Multimodal inputs** — unified interface for image and audio inputs across providers that support them (GPT-4o Vision, Claude Vision, Gemini Vision)
+- **Fine-tuned model support** — use fine-tuned models via the same provider interface with no code changes
+- **Rate limit awareness** — track remaining quota per provider and pre-emptively route away before hitting limits
+- **OpenTelemetry support** — emit traces and spans to any OTLP-compatible backend (Jaeger, Zipkin, Honeycomb, Datadog)
+- **Request replay** — record production traffic and replay it for regression testing when switching models
+- **Cost anomaly detection** — flag unusual spend spikes automatically before they show up on your bill
+
+The roadmap is public at [github.com/Vedanshu7/llmbridge/issues](https://github.com/Vedanshu7/llmbridge/issues). If something on this list matters to you, thumbs-up the issue or leave a comment — it directly shapes priority.
+
+
+## Build With Us — Contributions Welcome
+
+llmbridge is open source under the MIT license and welcomes contributors at every level, from first-time open source contributors to experienced Go engineers.
+
+**Here are the best ways to contribute:**
+
+**Add a new provider.** If there is a provider you use that is not supported yet, adding it is one of the most impactful contributions you can make. The process is documented step by step in [CONTRIBUTING.md](https://github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md). At a minimum you implement one interface and write the request/response transformation. Most new providers can be added in a few hundred lines of Go.
+
+**Improve the model pricing tables.** Providers change their prices regularly. If you notice a price is out of date, a one-line fix in `constants.go` is a valid and useful PR.
+
+**Write tests for edge cases.** Rate limit handling, context window overflow, partial streaming failures — these are hard to reproduce in CI but easy to write unit tests for with mocks. Good test coverage in the error paths makes llmbridge more reliable for everyone.
+
+**Improve documentation.** If something in the README or Go docs was confusing when you first picked up llmbridge, a clarifying PR is always welcome.
+
+**Report bugs and request features.** Even if you are not writing code, opening a detailed issue with reproduction steps is a real contribution. The issue tracker is at [github.com/Vedanshu7/llmbridge/issues](https://github.com/Vedanshu7/llmbridge/issues).
+
+To get started:
+
+```bash
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/llmbridge
+cd llmbridge
+
+# Run the test suite
+go test ./...
+
+# Run the linter
+golangci-lint run
+```
+
+The test suite runs without any external API keys — everything uses recorded fixtures. You can run it entirely offline. The full contribution workflow is in [CONTRIBUTING.md](https://github.com/Vedanshu7/llmbridge/blob/main/CONTRIBUTING.md).
+
+The Go ecosystem deserves first-class LLM tooling. Every provider added, every bug fixed, every test written moves that forward. We would love to have you involved.
+
+
 ## Get Started
 
 ```bash

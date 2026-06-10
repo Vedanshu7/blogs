@@ -3,7 +3,7 @@
 *From brute force failure to sub-100ms retrieval across 10 million vectors, a ground-up explanation of every layer.*
 
 ![Server rack with illuminated network cables representing database infrastructure](figs/pgvector-cover.jpg)
-*Photo by [Massimo Botturi](https://unsplash.com/@wildmax) on [Unsplash](https://unsplash.com/photos/zFYUsLk_50Y)*
+*Photo by [NASA](https://unsplash.com/@nasa) on [Unsplash](https://unsplash.com/photos/Q1p7bh3SHj8)*
 
 > **TL;DR** Most RAG tutorials hide the hard part behind one function call. This post opens it up: why brute force search collapses at scale, how LSH introduced the core insight that modern indexes still use, why HNSW replaced it, how hybrid BM25 + vector search covers the blind spots, and how semantic caching makes the most expensive layer (the LLM call) free on repeat queries. Every section includes working code you can drop into a pgvector setup.
 

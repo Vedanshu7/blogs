@@ -2,7 +2,7 @@
 
 *The honest technical answer: hallucination is a math problem, not a behavior problem. Here's what that means for how you actually fix it.*
 
-![Abstract glowing sphere of interconnected dots and lines, evoking a neural network](https://images.unsplash.com/photo-1674027444485-cec3da58eef4?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0)
+![Abstract glowing sphere of interconnected dots and lines, evoking a neural network](figs/llm-hallucinations.jpg)
 *Photo by [Growtika](https://unsplash.com/@growtika) on [Unsplash](https://unsplash.com/photos/nGoCBxiaRO0)*
 
 ---

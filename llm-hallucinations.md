@@ -340,7 +340,7 @@ confidence. Fabricating a confident-sounding answer is the worst possible outcom
 
 This is prompt-level behavior modification, not architecture-level retraining — but it works because it shifts the model's in-context optimization target. The model's reasoning about "what is the best response here" is influenced by the stated evaluation criteria. Explicitly telling the model that confident fabrication is more penalized than abstention changes the probability landscape of its output.
 
-For teams training or fine-tuning their own models, the paper's implication is direct: use a scoring scheme that grants partial credit for calibrated abstention and heavily penalizes confident wrong answers. The paper notes that smaller models trained this way outperform larger models on reliability — a small model that only speaks when it's confident is more useful in production than a large model that always answers.
+For teams training or fine-tuning their own models, the paper's implication is direct: use a scoring scheme that grants partial credit for calibrated abstention and heavily penalizes confident wrong answers. The paper notes that smaller models trained this way outperform larger models in reliability — a small model that only speaks when it's confident is more useful in production than a large model that always answers.
 
 ### Layer 7: Constrained Decoding with Guidance or Outlines
 

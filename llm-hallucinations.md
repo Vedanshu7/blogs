@@ -5,13 +5,11 @@
 ![Abstract glowing sphere of interconnected dots and lines, evoking a neural network](figs/llm-hallucinations.jpg)
 *Photo by [Growtika](https://unsplash.com/@growtika) on [Unsplash](https://unsplash.com/photos/nGoCBxiaRO0)*
 
----
 
 You ask an LLM for the CEO of a company. It gives you a name — confidently, fluently, with no hedging. The name is wrong. It doesn't exist. The model didn't know, and it didn't tell you it didn't know. It just filled in the gap with something plausible.
 
 That's a hallucination. And understanding why it happens requires understanding what an LLM actually is at the mathematical level — because the fix is not "better prompting" alone, and it's not "use a smarter model" alone. The fix is architectural, and it requires a layered approach.
 
----
 
 ## What a Hallucination Actually Is
 
@@ -23,7 +21,6 @@ The model didn't try to deceive you. It doesn't have a concept of deception or o
 
 The confusion between "plausible" and "true" is the entire problem.
 
----
 
 ## Why It Happens: The Technical Root Causes
 
@@ -59,7 +56,6 @@ The result: models are trained to be confidently wrong rather than honestly unce
 
 This means the behavior is not a fundamental limitation of the architecture. It's a consequence of how the model was trained. Change the incentives, and you change the behavior.
 
----
 
 ## When Hallucinations Are Most Likely
 
@@ -75,7 +71,6 @@ Knowing the mechanism tells you which situations are highest risk:
 
 **Highly specific technical or legal claims.** The more precise the claim required, the more likely the model is to produce a plausible-sounding approximation rather than an accurate specific.
 
----
 
 ## Measure Before You Mitigate
 
@@ -135,7 +130,6 @@ Run DeepEval in CI on a curated test set every time you change your prompt, swap
 
 The practical split: **DeepEval for regression testing in CI, Ragas for ongoing RAG pipeline evaluation in production.**
 
----
 
 ## How to Actually Fix It
 
@@ -376,7 +370,6 @@ Fine-tuning on a curated, high-quality dataset of domain-specific facts does two
 
 The practical constraint is data quality. A fine-tuned model trained on noisy or incorrect domain data will hallucinate domain-specific wrong answers with *higher* confidence than the base model. The bar for fine-tuning data is higher than for most ML tasks — if you're not certain your training data is correct, stay with RAG until you are.
 
----
 
 ## Putting It Together
 
@@ -412,7 +405,6 @@ Response
 
 You don't need all eight layers for every application. A customer support bot that classifies tickets needs RAG, structured output, and a confidence threshold. A medical information tool needs all eight. Match the layers to the cost of a wrong answer — not to how impressive the stack sounds.
 
----
 
 ## What Doesn't Work
 
@@ -424,7 +416,6 @@ A few common non-solutions worth naming:
 
 **"Use a model with a larger context window."** More context doesn't prevent hallucination — it can amplify it. As context length grows, attention spreads, and factual grounding weakens. Long-context models still need RAG and verification.
 
----
 
 ## Closing Thoughts
 
@@ -434,6 +425,5 @@ The layered approach above — RAG for grounding, constrained outputs for precis
 
 The most important mental model shift is this: treat the LLM as a reasoning engine with unreliable recall, not as a database. Give it the facts. Constrain its outputs. Verify its conclusions. The model's reasoning ability is genuinely impressive — the factual recall is not. Build your system around that asymmetry.
 
----
 
 *If you've run into a specific hallucination pattern that none of the above layers caught, I'd be curious — leave a note in the comments. The failure modes are as varied as the applications, and the edge cases are where you learn the most.*

@@ -3,7 +3,7 @@
 *From brute force failure to sub-100ms retrieval across 10 million vectors, a ground-up explanation of every layer.*
 
 ![Server rack with illuminated network cables representing database infrastructure](figs/pgvector-cover.jpg)
-*Photo by [NASA](https://unsplash.com/@nasa) on [Unsplash](https://unsplash.com/photos/Q1p7bh3SHj8)*
+*Photo by [Roman Mager](https://unsplash.com/@roman_lazygeek) on [Unsplash](https://unsplash.com/photos/5mZ_M06Fc9g)*
 
 > **TL;DR** Most RAG tutorials hide the hard part behind one function call. This post opens it up: why brute force search collapses at scale, how LSH introduced the core insight that modern indexes still use, why HNSW replaced it, how hybrid BM25 + vector search covers the blind spots, and how semantic caching makes the most expensive layer (the LLM call) free on repeat queries. Every section includes working code you can drop into a pgvector setup.
 
@@ -86,14 +86,7 @@ Normal hash functions are engineered to avoid collisions; similar inputs should 
 
 LSH flips this deliberately. You design a hash function where **similar inputs produce the same output**:
 
-```
-Normal hash:   embed("Q3 revenue")  → "a3f4b2c1..."
-               embed("Q3 sales")    → "d9e2f1a8..."   ← completely different
-
-LSH:           embed("Q3 revenue")  → bucket_42
-               embed("Q3 sales")    → bucket_42       ← same bucket
-               embed("Q2 report")   → bucket_17       ← different bucket
-```
+![LSH vs normal hash: similar queries route to the same bucket, dissimilar queries to different buckets](figs/lsh-comparison.png)
 
 Important: LSH operates on **embedding vectors**, not raw text. The text is converted to a high-dimensional vector first, and LSH partitions that vector space.
 
@@ -187,38 +180,13 @@ IVFFlat (Inverted File with Flat storage) is one of the two primary indexes in p
 
 Run k-means clustering over all your vectors. Each vector gets assigned to its nearest centroid:
 
-```
-Centroid 1 (financial context)
-  ├── "Q3 revenue breakdown"
-  ├── "monthly invoice total"
-  ├── "profit margin analysis Q4"
-  └── "accounts receivable aging"
-
-Centroid 2 (inventory context)
-  ├── "stock levels for SKU-4892"
-  ├── "warehouse inventory by location"
-  └── "reorder threshold items"
-
-Centroid 3 (customer context)
-  ├── "customer purchase frequency"
-  └── "merchant order history 90 days"
-
-... k-3 more centroids
-```
+![IVFFlat centroid clusters: vector space partitioned into financial, inventory, and customer centroids with their assigned documents](figs/ivfflat-centroids.png)
 
 ### Query Phase
 
 Find the nearest centroid(s) to your query, then search only within those clusters:
 
-```
-Query: "Q3 profit breakdown"
-  ↓
-Find nearest centroid → Centroid 1 (financial)
-  ↓
-Search only ~10,000 vectors in Centroid 1
-  ↓
-Return top 5 results
-```
+![IVFFlat query flow: query routed to nearest centroid, search narrowed to that cluster only](figs/ivfflat-query.png)
 
 Instead of searching 1 million vectors, you search 10,000.
 
@@ -302,39 +270,13 @@ HNSW (Hierarchical Navigable Small World) is the current state-of-the-art for ap
 
 HNSW builds a layered graph. Every vector is a node. Each node has connections to its nearest neighbours. The layers work like a road network:
 
-```
-Layer 2  (motorways — few nodes, long-range connections)
-  [A] ──────────────────────────── [Z]
-
-Layer 1  (A-roads — medium density)
-  [A] ──── [C] ──── [K] ──── [Z]
-            │                  │
-           [F] ─────────────[M]
-
-Layer 0  (local streets — every node, dense neighbourhood)
-  [A]─[B]─[C]─[D]─[E]─[F]─[G]─[H]─[I]─[J]─[K]─...
-  every node connected to its ~16 nearest neighbours
-```
+![HNSW layered graph structure: Layer 2 sparse motorways, Layer 1 medium A-roads, Layer 0 dense local streets](figs/hnsw-layers.png)
 
 Not every node makes it to the upper layers. The top layers are sparse, giving the graph its long-range navigation properties.
 
 ### How Search Works
 
-```
-Query arrives
-  ↓
-Enter at Layer 2 — few nodes, big jumps
-  Greedily move toward whichever neighbour is closer to query
-  Stop when no neighbour is closer → drop to Layer 1
-  ↓
-Layer 1 — medium density
-  Continue greedy navigation from Layer 2 result
-  Stop when no neighbour is closer → drop to Layer 0
-  ↓
-Layer 0 — dense local neighbourhood
-  Exhaustively search the local neighbourhood
-  Return top k results
-```
+![HNSW search flow: greedy navigation from sparse Layer 2 down through Layer 1 to dense Layer 0 for final results](figs/hnsw-search.png)
 
 The key property is "small world": because of how the graph is constructed, any two nodes are reachable in a small number of hops. The upper layers let you cross large semantic distances quickly before the lower layer gives you fine-grained precision.
 
@@ -406,27 +348,7 @@ ef_search = 200    near-perfect recall, slower
 
 ## Part 5: IVFFlat vs HNSW
 
-```
-                    IVFFlat              HNSW
-──────────────────────────────────────────────────────────
-Index build         Fast                 Slow
-                    (k-means only)       (full graph build)
-
-Query speed         Fast                 Faster
-
-Memory              Low                  Higher
-                    (vectors only)       (vectors + graph)
-
-Recall at same      Lower                Higher
-query latency
-
-Live data updates   Degrades over time   Handles well
-                    rebuild periodically insert nodes without rebuild
-
-Best fit            Large, static        Production systems
-                    datasets, memory-    needing live updates
-                    constrained envs     and highest speed
-```
+![IVFFlat vs HNSW comparison: build speed, query speed, memory, live update handling, and best-fit use cases](figs/ivfflat-vs-hnsw.png)
 
 **When to use IVFFlat**: your dataset is large and mostly static, you rebuild the index on a schedule, and memory is a hard constraint.
 

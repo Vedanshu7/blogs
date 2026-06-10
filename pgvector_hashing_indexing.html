@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>pgvector_hashing_indexing</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {  background-color: #f8f8f8; }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ef2929; } /* Alert */
+    code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #204a87; } /* Attribute */
+    code span.bn { color: #0000cf; } /* BaseN */
+    code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4e9a06; } /* Char */
+    code span.cn { color: #8f5902; } /* Constant */
+    code span.co { color: #8f5902; font-style: italic; } /* Comment */
+    code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+    code span.dt { color: #204a87; } /* DataType */
+    code span.dv { color: #0000cf; } /* DecVal */
+    code span.er { color: #a40000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #0000cf; } /* Float */
+    code span.fu { color: #204a87; font-weight: bold; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+    code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+    code span.ot { color: #8f5902; } /* Other */
+    code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+    code span.sc { color: #ce5c00; font-weight: bold; } /* SpecialChar */
+    code span.ss { color: #4e9a06; } /* SpecialString */
+    code span.st { color: #4e9a06; } /* String */
+    code span.va { color: #000000; } /* Variable */
+    code span.vs { color: #4e9a06; } /* VerbatimString */
+    code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1
+id="how-vector-search-actually-works-pgvector-lsh-hnsw-and-semantic-caching-under-the-hood">How
+Vector Search Actually Works: pgvector, LSH, HNSW, and Semantic Caching
+Under the Hood</h1>
+<p><em>From brute force failure to sub-100ms retrieval across 10 million
+vectors, a ground-up explanation of every layer.</em></p>
+<p><img src="figs/pgvector-cover.jpg"
+alt="Server rack with illuminated network cables representing database infrastructure" />
+<em>Photo by <a href="https://unsplash.com/@roman_lazygeek">Roman
+Mager</a> on <a
+href="https://unsplash.com/photos/5mZ_M06Fc9g">Unsplash</a></em></p>
+<blockquote>
+<p><strong>TL;DR</strong> Most RAG tutorials hide the hard part behind
+one function call. This post opens it up: why brute force search
+collapses at scale, how LSH introduced the core insight that modern
+indexes still use, why HNSW replaced it, how hybrid BM25 + vector search
+covers the blind spots, and how semantic caching makes the most
+expensive layer (the LLM call) free on repeat queries. Every section
+includes working code you can drop into a pgvector setup.</p>
+</blockquote>
+<h2 id="who-this-is-for">Who This Is For</h2>
+<p>You have built a RAG system. It works in development. Now you are
+thinking about production: real query volumes, real latency
+requirements, real cost pressure from LLM calls. You have heard of HNSW
+and pgvector but you want to understand what they actually do, not just
+which flag to set.</p>
+<p>This post is for you.</p>
+<h2 id="the-problem-nobody-talks-about-in-rag-tutorials">The Problem
+Nobody Talks About in RAG Tutorials</h2>
+<p>Most RAG tutorials show you something like this:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> vectorstore.similarity_search(<span class="st">&quot;What were top products in Q3?&quot;</span>, k<span class="op">=</span><span class="dv">5</span>)</span></code></pre></div>
+<p>One line. Clean. Simple. Works great in a notebook with 500
+documents.</p>
+<p>Then you put it in production with 10 million chunks across 400
+tenants, each query needing a response in under 100ms, and that one line
+becomes the most expensive operation in your entire system.</p>
+<p>The question tutorials never answer: <strong>how does the vector
+store actually find the nearest vector without comparing against every
+single one?</strong></p>
+<p>This post answers that from first principles, starting with why brute
+force fails, moving through Locality Sensitive Hashing, then IVFFlat and
+HNSW, then hybrid search, and ending with semantic caching as the final
+force multiplier.</p>
+<h2 id="part-1-why-brute-force-doesnt-work">Part 1: Why Brute Force
+Doesn’t Work</h2>
+<p>Let’s start with what vector similarity search actually does at the
+machine level.</p>
+<p>You have a query. You embed it into a 1536-dimensional vector using a
+model like OpenAI’s <code>text-embedding-3-small</code>. You want the 5
+most similar vectors in your database.</p>
+<p>The naive approach (compute cosine similarity against every stored
+vector, return the top 5):</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cosine_similarity(a: np.ndarray, b: np.ndarray) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.dot(a, b) <span class="op">/</span> (np.linalg.norm(a) <span class="op">*</span> np.linalg.norm(b))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> brute_force_search(</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    query_vector: np.ndarray,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    all_vectors: <span class="bu">list</span>[np.ndarray],</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    k: <span class="bu">int</span> <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    scores <span class="op">=</span> [</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        (i, cosine_similarity(query_vector, vec))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, vec <span class="kw">in</span> <span class="bu">enumerate</span>(all_vectors)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    scores.sort(key<span class="op">=</span><span class="kw">lambda</span> x: x[<span class="dv">1</span>], reverse<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [i <span class="cf">for</span> i, _ <span class="kw">in</span> scores[:k]]</span></code></pre></div>
+<p>This is O(n) per query. Here is what that looks like at different
+scales on a standard CPU:</p>
+<pre><code>Vectors        Query latency    50K daily queries    Daily compute
+───────────────────────────────────────────────────────────────────
+10,000         ~1ms             ~8 minutes           manageable
+1,000,000      ~100ms           ~83 hours            not viable
+10,000,000     ~1,000ms         ~35 days             impossible</code></pre>
+<p>At 10 million vectors and 50,000 daily queries you are running
+<strong>500 billion similarity comparisons per day</strong>, each
+involving 1,536 floating point multiplications.</p>
+<p>That is not a latency problem. That is a physics problem.</p>
+<p>You need a data structure that makes the search sub-linear, something
+that lets you skip most of the comparisons without losing the right
+answers. That is what indexes do, and understanding them starts with a
+counterintuitive trick from the 1990s.</p>
+<h2 id="part-2-locality-sensitive-hashing-the-core-insight">Part 2:
+Locality Sensitive Hashing: The Core Insight</h2>
+<p>Before modern vector databases existed, the standard solution was
+Locality Sensitive Hashing (LSH). It is largely superseded now, but
+understanding it unlocks the intuition behind everything that came
+after.</p>
+<h3 id="the-insight">The Insight</h3>
+<p>Normal hash functions are engineered to avoid collisions; similar
+inputs should produce different outputs. MD5(“apple”) and MD5(“apples”)
+look nothing alike. That is the point.</p>
+<p>LSH flips this deliberately. You design a hash function where
+<strong>similar inputs produce the same output</strong>:</p>
+<figure>
+<img src="figs/lsh-comparison.png"
+alt="LSH vs normal hash: similar queries route to the same bucket, dissimilar queries to different buckets" />
+<figcaption aria-hidden="true">LSH vs normal hash: similar queries route
+to the same bucket, dissimilar queries to different buckets</figcaption>
+</figure>
+<p>Important: LSH operates on <strong>embedding vectors</strong>, not
+raw text. The text is converted to a high-dimensional vector first, and
+LSH partitions that vector space.</p>
+<h3 id="random-projection">Random Projection</h3>
+<p>The most common LSH technique is random projection. Here is the
+intuition.</p>
+<p>Imagine your embedding vectors live in 2D space (real embeddings are
+1536-dimensional but the principle is identical). Draw a random line
+through that space. Every vector falls on either the left or the right
+side.</p>
+<pre><code>               LEFT  |  RIGHT
+                     |
+  &quot;Q3 revenue&quot;  •   |             • &quot;Q2 report&quot;
+                     |
+  &quot;Q3 sales&quot;    •   |
+                     |</code></pre>
+<p>“Q3 revenue” and “Q3 sales” are semantically similar; they point in
+similar directions in embedding space and fall on the same side of most
+random lines. “Q2 report” points in a different direction and falls on
+the other side.</p>
+<p>Each line gives one bit: left = 0, right = 1. Draw 16 random lines
+and you get a 16-bit hash. Semantically similar vectors tend to get the
+same hash. Semantically different vectors diverge.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RandomProjectionLSH:</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, vector_dim: <span class="bu">int</span> <span class="op">=</span> <span class="dv">1536</span>, n_planes: <span class="bu">int</span> <span class="op">=</span> <span class="dv">16</span>):</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="co"># random hyperplane normals — fixed after initialization</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="co"># shape: (n_planes, vector_dim)</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.planes <span class="op">=</span> np.random.randn(n_planes, vector_dim)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.buckets: <span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">list</span>[<span class="bu">tuple</span>[np.ndarray, <span class="bu">str</span>]]] <span class="op">=</span> {}</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _hash(<span class="va">self</span>, vector: np.ndarray) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        <span class="co"># dot product with each plane normal</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># positive = same side as normal = bit 1</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># negative = opposite side = bit 0</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        projections <span class="op">=</span> np.dot(<span class="va">self</span>.planes, vector)    <span class="co"># (n_planes,)</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        bits <span class="op">=</span> (projections <span class="op">&gt;</span> <span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">&quot;&quot;</span>.join(<span class="bu">map</span>(<span class="bu">str</span>, bits))               <span class="co"># e.g. &quot;1010011010110101&quot;</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> store(<span class="va">self</span>, vector: np.ndarray, payload: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        key <span class="op">=</span> <span class="va">self</span>._hash(vector)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.buckets.setdefault(key, []).append((vector, payload))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> lookup(<span class="va">self</span>, query_vector: np.ndarray, threshold: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.92</span>) <span class="op">-&gt;</span> <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>:</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>        key <span class="op">=</span> <span class="va">self</span>._hash(query_vector)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>        candidates <span class="op">=</span> <span class="va">self</span>.buckets.get(key, [])</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        <span class="co"># compare only against vectors in the same bucket</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> stored_vector, payload <span class="kw">in</span> candidates:</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>            sim <span class="op">=</span> <span class="va">self</span>._cosine(query_vector, stored_vector)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> sim <span class="op">&gt;=</span> threshold:</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> payload  <span class="co"># hit</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">None</span>  <span class="co"># miss</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">@staticmethod</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _cosine(a: np.ndarray, b: np.ndarray) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">float</span>(np.dot(a, b) <span class="op">/</span> (np.linalg.norm(a) <span class="op">*</span> np.linalg.norm(b)))</span></code></pre></div>
+<h3 id="the-speed-gain">The Speed Gain</h3>
+<p>With 16 planes you have 2^16 = 65,536 possible buckets. Across 1
+million vectors distributed roughly uniformly:</p>
+<pre><code>1,000,000 vectors / 65,536 buckets ≈ 15 vectors per bucket
+
+Without LSH:  1,000,000 comparisons per query
+With LSH:            15 comparisons per query</code></pre>
+<h3 id="the-limitation">The Limitation</h3>
+<p>LSH makes a hard tradeoff: two similar vectors can land in different
+buckets if they happen to fall on opposite sides of one random plane.
+You miss a cache hit that should have been found. This is a
+<strong>false negative</strong>.</p>
+<p>You control this with two levers: - <strong>More planes</strong> →
+finer buckets → fewer misses → slower - <strong>Fewer planes</strong> →
+coarser buckets → more misses → faster</p>
+<p>In practice you run multiple independent LSH tables and union their
+results; this reduces false negatives at the cost of more memory. It
+works, but it is operationally complex.</p>
+<p>LSH was the dominant approach until roughly 2016. Then graph-based
+methods arrived with a fundamentally better answer to the same problem;
+they achieve higher recall at the same speed without the false-negative
+tradeoff that LSH forces you to manage manually.</p>
+<h2 id="part-3-ivfflat-clustering-for-search">Part 3: IVFFlat:
+Clustering for Search</h2>
+<p>IVFFlat (Inverted File with Flat storage) is one of the two primary
+indexes in pgvector. Instead of hashing, it partitions the vector space
+into clusters.</p>
+<h3 id="build-phase">Build Phase</h3>
+<p>Run k-means clustering over all your vectors. Each vector gets
+assigned to its nearest centroid:</p>
+<figure>
+<img src="figs/ivfflat-centroids.png"
+alt="IVFFlat centroid clusters: vector space partitioned into financial, inventory, and customer centroids with their assigned documents" />
+<figcaption aria-hidden="true">IVFFlat centroid clusters: vector space
+partitioned into financial, inventory, and customer centroids with their
+assigned documents</figcaption>
+</figure>
+<h3 id="query-phase">Query Phase</h3>
+<p>Find the nearest centroid(s) to your query, then search only within
+those clusters:</p>
+<figure>
+<img src="figs/ivfflat-query.png"
+alt="IVFFlat query flow: query routed to nearest centroid, search narrowed to that cluster only" />
+<figcaption aria-hidden="true">IVFFlat query flow: query routed to
+nearest centroid, search narrowed to that cluster only</figcaption>
+</figure>
+<p>Instead of searching 1 million vectors, you search 10,000.</p>
+<h3 id="ivfflat-in-pgvector">IVFFlat in pgvector</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- enable pgvector extension (once per database)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> vector;</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- your table</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> document_chunks (</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    tenant_id   UUID <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    content     TEXT,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    embedding   vector(<span class="dv">1536</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co">-- create IVFFlat index</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co">-- lists = number of centroids</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co">-- rule of thumb: sqrt(row_count), so 100 for 10K rows, 1000 for 1M rows</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="kw">ON</span> document_chunks</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="kw">USING</span> ivfflat (embedding vector_cosine_ops)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> (lists <span class="op">=</span> <span class="dv">100</span>);</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg2</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pgvector.psycopg2 <span class="im">import</span> register_vector</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ivfflat_search(</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    query_embedding: <span class="bu">list</span>[<span class="bu">float</span>],</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    tenant_id: <span class="bu">str</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    k: <span class="bu">int</span> <span class="op">=</span> <span class="dv">5</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    n_probes: <span class="bu">int</span> <span class="op">=</span> <span class="dv">10</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">dict</span>]:</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> psycopg2.<span class="ex">connect</span>(conn_string) <span class="im">as</span> conn:</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        register_vector(conn)  <span class="co"># register pgvector type adapter</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>            <span class="co"># nprobes = how many clusters to search</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>            <span class="co"># higher = better recall, slower query</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>            cur.execute(<span class="st">&quot;SET ivfflat.probes = </span><span class="sc">%s</span><span class="st">&quot;</span>, (n_probes,))</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>            cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="st">                SELECT content,</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="st">                       1 - (embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector) AS similarity</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="st">                FROM document_chunks</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="st">                WHERE tenant_id = </span><span class="sc">%s</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="st">                ORDER BY embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="st">                LIMIT </span><span class="sc">%s</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="st">            &quot;&quot;&quot;</span>, (query_embedding, tenant_id, query_embedding, k))</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> [</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>                {<span class="st">&quot;content&quot;</span>: row[<span class="dv">0</span>], <span class="st">&quot;similarity&quot;</span>: <span class="bu">float</span>(row[<span class="dv">1</span>])}</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> row <span class="kw">in</span> cur.fetchall()</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>            ]</span></code></pre></div>
+<h3 id="the-nprobes-knob">The nprobes Knob</h3>
+<p><code>nprobes</code> is IVFFlat’s recall vs speed lever:</p>
+<pre><code>nprobes = 1     → 1 cluster searched   → fastest, lowest recall
+nprobes = 10    → 10 clusters searched → balanced (start here)
+nprobes = lists → all clusters         → same as brute force</code></pre>
+<p>Start with <code>nprobes = sqrt(lists)</code> and tune from there
+based on your recall requirements.</p>
+<h3 id="ivfflats-limitation">IVFFlat’s Limitation</h3>
+<p>The clusters are fixed at index creation time. Add new vectors and
+they are assigned to the nearest existing centroid, but if those vectors
+represent a new semantic region not well-covered by existing centroids,
+retrieval quality degrades silently over time. You need to periodically
+rebuild the index as your data grows.</p>
+<p>For datasets that change frequently, you want HNSW.</p>
+<h2 id="part-4-hnsw-graph-based-navigation">Part 4: HNSW: Graph-Based
+Navigation</h2>
+<p>HNSW (Hierarchical Navigable Small World) is the current
+state-of-the-art for approximate nearest neighbour search and the
+default index type in pgvector. It solves IVFFlat’s staleness problem
+and achieves higher recall at similar query speeds.</p>
+<h3 id="the-structure">The Structure</h3>
+<p>HNSW builds a layered graph. Every vector is a node. Each node has
+connections to its nearest neighbours. The layers work like a road
+network:</p>
+<figure>
+<img src="figs/hnsw-layers.png"
+alt="HNSW layered graph structure: Layer 2 sparse motorways, Layer 1 medium A-roads, Layer 0 dense local streets" />
+<figcaption aria-hidden="true">HNSW layered graph structure: Layer 2
+sparse motorways, Layer 1 medium A-roads, Layer 0 dense local
+streets</figcaption>
+</figure>
+<p>Not every node makes it to the upper layers. The top layers are
+sparse, giving the graph its long-range navigation properties.</p>
+<h3 id="how-search-works">How Search Works</h3>
+<figure>
+<img src="figs/hnsw-search.png"
+alt="HNSW search flow: greedy navigation from sparse Layer 2 down through Layer 1 to dense Layer 0 for final results" />
+<figcaption aria-hidden="true">HNSW search flow: greedy navigation from
+sparse Layer 2 down through Layer 1 to dense Layer 0 for final
+results</figcaption>
+</figure>
+<p>The key property is “small world”: because of how the graph is
+constructed, any two nodes are reachable in a small number of hops. The
+upper layers let you cross large semantic distances quickly before the
+lower layer gives you fine-grained precision.</p>
+<h3 id="hnsw-in-pgvector">HNSW in pgvector</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- create HNSW index</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- m = connections per node per layer (default 16)</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- ef_construction = candidate list size during build (default 64)</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="kw">ON</span> document_chunks</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">USING</span> hnsw (embedding vector_cosine_ops)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> (m <span class="op">=</span> <span class="dv">16</span>, ef_construction <span class="op">=</span> <span class="dv">64</span>);</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hnsw_search(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    query_embedding: <span class="bu">list</span>[<span class="bu">float</span>],</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    tenant_id: <span class="bu">str</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    k: <span class="bu">int</span> <span class="op">=</span> <span class="dv">5</span>,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    ef_search: <span class="bu">int</span> <span class="op">=</span> <span class="dv">40</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">dict</span>]:</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> psycopg2.<span class="ex">connect</span>(conn_string) <span class="im">as</span> conn:</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        register_vector(conn)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>            <span class="co"># ef_search = candidate list size during query</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>            <span class="co"># tunable without rebuilding the index</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>            cur.execute(<span class="st">&quot;SET hnsw.ef_search = </span><span class="sc">%s</span><span class="st">&quot;</span>, (ef_search,))</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>            cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="st">                SELECT content,</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="st">                       1 - (embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector) AS similarity</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="st">                FROM document_chunks</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="st">                WHERE tenant_id = </span><span class="sc">%s</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="st">                ORDER BY embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="st">                LIMIT </span><span class="sc">%s</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="st">            &quot;&quot;&quot;</span>, (query_embedding, tenant_id, query_embedding, k))</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> [</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>                {<span class="st">&quot;content&quot;</span>: row[<span class="dv">0</span>], <span class="st">&quot;similarity&quot;</span>: <span class="bu">float</span>(row[<span class="dv">1</span>])}</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> row <span class="kw">in</span> cur.fetchall()</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>            ]</span></code></pre></div>
+<h3 id="tuning-hnsw">Tuning HNSW</h3>
+<p><strong><code>m</code></strong>: connections per node per layer.
+Controls graph density.</p>
+<pre><code>m = 8    low memory, lower recall   → small datasets, memory-constrained
+m = 16   balanced                   → default, works for most cases
+m = 64   high memory, high recall   → maximum accuracy requirements</code></pre>
+<p><strong><code>ef_construction</code></strong>: candidate list size
+during index build. Higher quality graph, slower build. Set once at
+index creation.</p>
+<pre><code>ef_construction = 32    fast build, lower graph quality
+ef_construction = 64    balanced (default)
+ef_construction = 256   slow build, highest graph quality</code></pre>
+<p><strong><code>ef_search</code></strong>: candidate list size at query
+time. <strong>This is the knob you tune in production</strong>; it does
+not require rebuilding the index.</p>
+<pre><code>ef_search = 10     fast, misses some results
+ef_search = 40     balanced starting point
+ef_search = 200    near-perfect recall, slower</code></pre>
+<h2 id="part-5-ivfflat-vs-hnsw">Part 5: IVFFlat vs HNSW</h2>
+<figure>
+<img src="figs/ivfflat-vs-hnsw.png"
+alt="IVFFlat vs HNSW comparison: build speed, query speed, memory, live update handling, and best-fit use cases" />
+<figcaption aria-hidden="true">IVFFlat vs HNSW comparison: build speed,
+query speed, memory, live update handling, and best-fit use
+cases</figcaption>
+</figure>
+<p><strong>When to use IVFFlat</strong>: your dataset is large and
+mostly static, you rebuild the index on a schedule, and memory is a hard
+constraint.</p>
+<p><strong>When to use HNSW</strong>: you need the fastest queries, data
+arrives continuously (new tenants, new documents), and you are running
+on pgvector in production. This is the default choice for good
+reason.</p>
+<h2 id="part-6-hybrid-search-closing-the-blind-spot">Part 6: Hybrid
+Search: Closing the Blind Spot</h2>
+<p>Pure vector search has one significant weakness: it finds
+semantically similar content, but it can miss exact matches.</p>
+<pre><code>Query: &quot;order ORD-48291 shipping status&quot;
+
+Vector search:  finds chunks about order status generally
+                misses the specific order ORD-48291 because a
+                product ID has no semantic neighbourhood
+
+BM25 search:    finds the exact chunk containing &quot;ORD-48291&quot;
+                because it does exact keyword matching</code></pre>
+<p>The solution is to run both retrieval methods in parallel and fuse
+their results. This is <strong>hybrid search</strong>.</p>
+<h3 id="bm25-refresher">BM25 Refresher</h3>
+<p>BM25 is the algorithm behind most traditional search engines. It
+scores documents on:</p>
+<ul>
+<li><strong>Term frequency</strong>: how often the search term appears
+in the document</li>
+<li><strong>Inverse document frequency</strong>: how rare the term is
+across all documents</li>
+<li><strong>Length normalization</strong>: shorter documents are not
+penalized for not repeating terms</li>
+</ul>
+<p>It does not understand meaning. “Invoice payment failure” and “failed
+to collect money” are unrelated to BM25. That is why you need both.</p>
+<h3 id="reciprocal-rank-fusion">Reciprocal Rank Fusion</h3>
+<p>Combining raw BM25 scores and cosine similarity scores is tricky;
+they are on completely different scales. The cleaner approach is
+Reciprocal Rank Fusion (RRF), which combines <strong>ranks</strong>
+rather than scores:</p>
+<pre><code>RRF score = sum over all retrievers of: 1 / (rank_in_that_retriever + k)
+k = 60 (standard constant, reduces the impact of extreme rank differences)</code></pre>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RetrievalResult:</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span>: <span class="bu">str</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    content: <span class="bu">str</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> reciprocal_rank_fusion(</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    vector_results: <span class="bu">list</span>[RetrievalResult],</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    bm25_results: <span class="bu">list</span>[RetrievalResult],</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    k: <span class="bu">int</span> <span class="op">=</span> <span class="dv">60</span>,</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    top_n: <span class="bu">int</span> <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]:</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">    Fuse two ranked result lists using RRF.</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns the top_n content strings from the fused ranking.</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co">    &quot;&quot;&quot;</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    rrf_scores: <span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">float</span>] <span class="op">=</span> {}</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>    content_map: <span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">str</span>] <span class="op">=</span> {}</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> rank, result <span class="kw">in</span> <span class="bu">enumerate</span>(vector_results):</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>        rrf_scores[result.<span class="bu">id</span>] <span class="op">=</span> rrf_scores.get(result.<span class="bu">id</span>, <span class="fl">0.0</span>) <span class="op">+</span> <span class="fl">1.0</span> <span class="op">/</span> (rank <span class="op">+</span> k)</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>        content_map[result.<span class="bu">id</span>] <span class="op">=</span> result.content</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> rank, result <span class="kw">in</span> <span class="bu">enumerate</span>(bm25_results):</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>        rrf_scores[result.<span class="bu">id</span>] <span class="op">=</span> rrf_scores.get(result.<span class="bu">id</span>, <span class="fl">0.0</span>) <span class="op">+</span> <span class="fl">1.0</span> <span class="op">/</span> (rank <span class="op">+</span> k)</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>        content_map[result.<span class="bu">id</span>] <span class="op">=</span> result.content</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>    ranked <span class="op">=</span> <span class="bu">sorted</span>(rrf_scores.items(), key<span class="op">=</span><span class="kw">lambda</span> x: x[<span class="dv">1</span>], reverse<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [content_map[doc_id] <span class="cf">for</span> doc_id, _ <span class="kw">in</span> ranked[:top_n]]</span></code></pre></div>
+<h3 id="hybrid-retriever-with-langchain">Hybrid Retriever with
+LangChain</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain_community.retrievers <span class="im">import</span> BM25Retriever</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain.retrievers <span class="im">import</span> EnsembleRetriever</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain_community.vectorstores <span class="im">import</span> PGVector</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain_openai <span class="im">import</span> OpenAIEmbeddings</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co"># vector retriever backed by HNSW index</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>vector_retriever <span class="op">=</span> PGVector(</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    connection_string<span class="op">=</span>conn_string,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    embedding_function<span class="op">=</span>OpenAIEmbeddings(model<span class="op">=</span><span class="st">&quot;text-embedding-3-small&quot;</span>),</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    collection_name<span class="op">=</span><span class="st">&quot;document_chunks&quot;</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>).as_retriever(search_kwargs<span class="op">=</span>{<span class="st">&quot;k&quot;</span>: <span class="dv">10</span>})</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co"># BM25 retriever over the same chunks</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>bm25_retriever <span class="op">=</span> BM25Retriever.from_documents(all_chunks, k<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="co"># ensemble: 60% semantic weight, 40% keyword weight</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>hybrid_retriever <span class="op">=</span> EnsembleRetriever(</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>    retrievers<span class="op">=</span>[vector_retriever, bm25_retriever],</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>    weights<span class="op">=</span>[<span class="fl">0.6</span>, <span class="fl">0.4</span>]</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> hybrid_retriever.invoke(<span class="st">&quot;order ORD-48291 shipping status&quot;</span>)</span></code></pre></div>
+<p>The weight split between vector and BM25 is domain-dependent. For
+free-text analytical questions, lean toward vector (0.7/0.3). For
+queries involving IDs, codes, and specific identifiers, lean toward BM25
+(0.4/0.6).</p>
+<h2 id="part-7-semantic-caching-making-repeat-calls-free">Part 7:
+Semantic Caching: Making Repeat Calls Free</h2>
+<p>Even with a fast HNSW retrieval layer, every query still requires an
+LLM call to generate the final response. In a multi-tenant analytics
+system, a significant percentage of those calls are semantically
+redundant, the same question rephrased, asked repeatedly by different
+users in the same cohort.</p>
+<p>Semantic caching eliminates those redundant LLM calls entirely.</p>
+<h3 id="exact-cache-vs-semantic-cache">Exact Cache vs Semantic
+Cache</h3>
+<p>An exact cache keys on the raw query string:</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> hashlib</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> hashlib.md5(<span class="st">&quot;What were top products Q3?&quot;</span>.encode()).hexdigest()</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># &quot;a3f4b2c1d9e8...&quot;</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># &quot;What were top products Q3 ?&quot; → &quot;d9e2f1a8...&quot;  # different key, cache miss</span></span></code></pre></div>
+<p>One character difference, like a trailing space, is a cache miss.
+Exact caches have near-zero hit rates in practice on free-text
+queries.</p>
+<p>A semantic cache keys on the <strong>embedding</strong> of the
+query:</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># embed(&quot;What were top products Q3?&quot;)        → vector_1</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># embed(&quot;Show me best selling items Q3?&quot;)    → vector_2</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># cosine_similarity(vector_1, vector_2) = 0.96</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co"># same question, different words → cache hit</span></span></code></pre></div>
+<h3 id="production-implementation">Production Implementation</h3>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># cache/semantic_cache.py</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg2</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pgvector.psycopg2 <span class="im">import</span> register_vector</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> openai <span class="im">import</span> OpenAI</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> OpenAI()</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>SETUP_SQL <span class="op">=</span> <span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="st">CREATE TABLE IF NOT EXISTS llm_response_cache (</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="st">    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="st">    tenant_id       UUID NOT NULL,</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="st">    query_text      TEXT NOT NULL,</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="st">    query_embedding vector(1536) NOT NULL,</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a><span class="st">    llm_response    TEXT NOT NULL,</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="st">    model           VARCHAR(100),</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="st">    token_count     INTEGER DEFAULT 0,</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="st">    hit_count       INTEGER DEFAULT 0,</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="st">    created_at      TIMESTAMPTZ DEFAULT NOW(),</span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="st">    last_accessed   TIMESTAMPTZ</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="st">);</span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="st">CREATE INDEX IF NOT EXISTS cache_hnsw_idx</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a><span class="st">ON llm_response_cache</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="st">USING hnsw (query_embedding vector_cosine_ops)</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="st">WITH (m = 16, ef_construction = 64);</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SemanticCache:</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>        conn_string: <span class="bu">str</span>,</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>        threshold: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.92</span>,</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>        embed_model: <span class="bu">str</span> <span class="op">=</span> <span class="st">&quot;text-embedding-3-small&quot;</span></span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>    ):</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.conn_string <span class="op">=</span> conn_string</span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.threshold <span class="op">=</span> threshold</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.embed_model <span class="op">=</span> embed_model</span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _embed(<span class="va">self</span>, text: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">float</span>]:</span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> client.embeddings.create(</span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a>            <span class="bu">input</span><span class="op">=</span>text, model<span class="op">=</span><span class="va">self</span>.embed_model</span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a>        ).data[<span class="dv">0</span>].embedding</span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> get(<span class="va">self</span>, query: <span class="bu">str</span>, tenant_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>:</span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>        <span class="co">&quot;&quot;&quot;Returns cached response if a similar query exists. None on miss.&quot;&quot;&quot;</span></span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a>        embedding <span class="op">=</span> <span class="va">self</span>._embed(query)</span>
+<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-48"><a href="#cb21-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> psycopg2.<span class="ex">connect</span>(<span class="va">self</span>.conn_string) <span class="im">as</span> conn:</span>
+<span id="cb21-49"><a href="#cb21-49" aria-hidden="true" tabindex="-1"></a>            register_vector(conn)</span>
+<span id="cb21-50"><a href="#cb21-50" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb21-51"><a href="#cb21-51" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-52"><a href="#cb21-52" aria-hidden="true" tabindex="-1"></a><span class="st">                    SELECT id, llm_response,</span></span>
+<span id="cb21-53"><a href="#cb21-53" aria-hidden="true" tabindex="-1"></a><span class="st">                           1 - (query_embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector) AS similarity</span></span>
+<span id="cb21-54"><a href="#cb21-54" aria-hidden="true" tabindex="-1"></a><span class="st">                    FROM   llm_response_cache</span></span>
+<span id="cb21-55"><a href="#cb21-55" aria-hidden="true" tabindex="-1"></a><span class="st">                    WHERE  tenant_id = </span><span class="sc">%s</span></span>
+<span id="cb21-56"><a href="#cb21-56" aria-hidden="true" tabindex="-1"></a><span class="st">                      AND  1 - (query_embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector) &gt;= </span><span class="sc">%s</span></span>
+<span id="cb21-57"><a href="#cb21-57" aria-hidden="true" tabindex="-1"></a><span class="st">                    ORDER  BY query_embedding &lt;=&gt; </span><span class="sc">%s</span><span class="st">::vector</span></span>
+<span id="cb21-58"><a href="#cb21-58" aria-hidden="true" tabindex="-1"></a><span class="st">                    LIMIT  1</span></span>
+<span id="cb21-59"><a href="#cb21-59" aria-hidden="true" tabindex="-1"></a><span class="st">                &quot;&quot;&quot;</span>, (embedding, tenant_id, embedding, <span class="va">self</span>.threshold, embedding))</span>
+<span id="cb21-60"><a href="#cb21-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-61"><a href="#cb21-61" aria-hidden="true" tabindex="-1"></a>                row <span class="op">=</span> cur.fetchone()</span>
+<span id="cb21-62"><a href="#cb21-62" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="kw">not</span> row:</span>
+<span id="cb21-63"><a href="#cb21-63" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">return</span> <span class="va">None</span></span>
+<span id="cb21-64"><a href="#cb21-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-65"><a href="#cb21-65" aria-hidden="true" tabindex="-1"></a>                cache_id, response, similarity <span class="op">=</span> row</span>
+<span id="cb21-66"><a href="#cb21-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-67"><a href="#cb21-67" aria-hidden="true" tabindex="-1"></a>                <span class="co"># update access stats</span></span>
+<span id="cb21-68"><a href="#cb21-68" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-69"><a href="#cb21-69" aria-hidden="true" tabindex="-1"></a><span class="st">                    UPDATE llm_response_cache</span></span>
+<span id="cb21-70"><a href="#cb21-70" aria-hidden="true" tabindex="-1"></a><span class="st">                    SET    hit_count    = hit_count + 1,</span></span>
+<span id="cb21-71"><a href="#cb21-71" aria-hidden="true" tabindex="-1"></a><span class="st">                           last_accessed = NOW()</span></span>
+<span id="cb21-72"><a href="#cb21-72" aria-hidden="true" tabindex="-1"></a><span class="st">                    WHERE  id = </span><span class="sc">%s</span></span>
+<span id="cb21-73"><a href="#cb21-73" aria-hidden="true" tabindex="-1"></a><span class="st">                &quot;&quot;&quot;</span>, (cache_id,))</span>
+<span id="cb21-74"><a href="#cb21-74" aria-hidden="true" tabindex="-1"></a>                conn.commit()</span>
+<span id="cb21-75"><a href="#cb21-75" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> response</span>
+<span id="cb21-76"><a href="#cb21-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-77"><a href="#cb21-77" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="bu">set</span>(</span>
+<span id="cb21-78"><a href="#cb21-78" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb21-79"><a href="#cb21-79" aria-hidden="true" tabindex="-1"></a>        query: <span class="bu">str</span>,</span>
+<span id="cb21-80"><a href="#cb21-80" aria-hidden="true" tabindex="-1"></a>        response: <span class="bu">str</span>,</span>
+<span id="cb21-81"><a href="#cb21-81" aria-hidden="true" tabindex="-1"></a>        tenant_id: <span class="bu">str</span>,</span>
+<span id="cb21-82"><a href="#cb21-82" aria-hidden="true" tabindex="-1"></a>        model: <span class="bu">str</span> <span class="op">=</span> <span class="st">&quot;gpt-4&quot;</span>,</span>
+<span id="cb21-83"><a href="#cb21-83" aria-hidden="true" tabindex="-1"></a>        token_count: <span class="bu">int</span> <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb21-84"><a href="#cb21-84" aria-hidden="true" tabindex="-1"></a>    ) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb21-85"><a href="#cb21-85" aria-hidden="true" tabindex="-1"></a>        <span class="co">&quot;&quot;&quot;Stores a new query-response pair.&quot;&quot;&quot;</span></span>
+<span id="cb21-86"><a href="#cb21-86" aria-hidden="true" tabindex="-1"></a>        embedding <span class="op">=</span> <span class="va">self</span>._embed(query)</span>
+<span id="cb21-87"><a href="#cb21-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-88"><a href="#cb21-88" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> psycopg2.<span class="ex">connect</span>(<span class="va">self</span>.conn_string) <span class="im">as</span> conn:</span>
+<span id="cb21-89"><a href="#cb21-89" aria-hidden="true" tabindex="-1"></a>            register_vector(conn)</span>
+<span id="cb21-90"><a href="#cb21-90" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb21-91"><a href="#cb21-91" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-92"><a href="#cb21-92" aria-hidden="true" tabindex="-1"></a><span class="st">                    INSERT INTO llm_response_cache</span></span>
+<span id="cb21-93"><a href="#cb21-93" aria-hidden="true" tabindex="-1"></a><span class="st">                        (tenant_id, query_text, query_embedding,</span></span>
+<span id="cb21-94"><a href="#cb21-94" aria-hidden="true" tabindex="-1"></a><span class="st">                         llm_response, model, token_count)</span></span>
+<span id="cb21-95"><a href="#cb21-95" aria-hidden="true" tabindex="-1"></a><span class="st">                    VALUES (</span><span class="sc">%s</span><span class="st">, </span><span class="sc">%s</span><span class="st">, </span><span class="sc">%s</span><span class="st">::vector, </span><span class="sc">%s</span><span class="st">, </span><span class="sc">%s</span><span class="st">, </span><span class="sc">%s</span><span class="st">)</span></span>
+<span id="cb21-96"><a href="#cb21-96" aria-hidden="true" tabindex="-1"></a><span class="st">                &quot;&quot;&quot;</span>, (tenant_id, query, embedding, response, model, token_count))</span>
+<span id="cb21-97"><a href="#cb21-97" aria-hidden="true" tabindex="-1"></a>                conn.commit()</span>
+<span id="cb21-98"><a href="#cb21-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-99"><a href="#cb21-99" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> stats(<span class="va">self</span>, tenant_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb21-100"><a href="#cb21-100" aria-hidden="true" tabindex="-1"></a>        <span class="co">&quot;&quot;&quot;Returns cache performance metrics for a tenant.&quot;&quot;&quot;</span></span>
+<span id="cb21-101"><a href="#cb21-101" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> psycopg2.<span class="ex">connect</span>(<span class="va">self</span>.conn_string) <span class="im">as</span> conn:</span>
+<span id="cb21-102"><a href="#cb21-102" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb21-103"><a href="#cb21-103" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb21-104"><a href="#cb21-104" aria-hidden="true" tabindex="-1"></a><span class="st">                    SELECT</span></span>
+<span id="cb21-105"><a href="#cb21-105" aria-hidden="true" tabindex="-1"></a><span class="st">                        COUNT(*)                                AS total_entries,</span></span>
+<span id="cb21-106"><a href="#cb21-106" aria-hidden="true" tabindex="-1"></a><span class="st">                        COALESCE(SUM(hit_count), 0)             AS total_hits,</span></span>
+<span id="cb21-107"><a href="#cb21-107" aria-hidden="true" tabindex="-1"></a><span class="st">                        COALESCE(AVG(hit_count), 0)             AS avg_hits,</span></span>
+<span id="cb21-108"><a href="#cb21-108" aria-hidden="true" tabindex="-1"></a><span class="st">                        COALESCE(SUM(token_count * hit_count), 0) AS tokens_saved</span></span>
+<span id="cb21-109"><a href="#cb21-109" aria-hidden="true" tabindex="-1"></a><span class="st">                    FROM llm_response_cache</span></span>
+<span id="cb21-110"><a href="#cb21-110" aria-hidden="true" tabindex="-1"></a><span class="st">                    WHERE tenant_id = </span><span class="sc">%s</span></span>
+<span id="cb21-111"><a href="#cb21-111" aria-hidden="true" tabindex="-1"></a><span class="st">                &quot;&quot;&quot;</span>, (tenant_id,))</span>
+<span id="cb21-112"><a href="#cb21-112" aria-hidden="true" tabindex="-1"></a>                row <span class="op">=</span> cur.fetchone()</span>
+<span id="cb21-113"><a href="#cb21-113" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> {</span>
+<span id="cb21-114"><a href="#cb21-114" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&quot;total_entries&quot;</span>: row[<span class="dv">0</span>],</span>
+<span id="cb21-115"><a href="#cb21-115" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&quot;total_hits&quot;</span>:    <span class="bu">int</span>(row[<span class="dv">1</span>]),</span>
+<span id="cb21-116"><a href="#cb21-116" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&quot;avg_hits&quot;</span>:      <span class="bu">round</span>(<span class="bu">float</span>(row[<span class="dv">2</span>]), <span class="dv">2</span>),</span>
+<span id="cb21-117"><a href="#cb21-117" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&quot;tokens_saved&quot;</span>:  <span class="bu">int</span>(row[<span class="dv">3</span>])</span>
+<span id="cb21-118"><a href="#cb21-118" aria-hidden="true" tabindex="-1"></a>                }</span></code></pre></div>
+<h3 id="wiring-it-into-your-llm-gateway">Wiring It Into Your LLM
+Gateway</h3>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># gateway/llm_gateway.py</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>cache <span class="op">=</span> SemanticCache(conn_string<span class="op">=</span>POSTGRES_CONN, threshold<span class="op">=</span><span class="fl">0.92</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>openai_client <span class="op">=</span> OpenAI()</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> call_llm(</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    query: <span class="bu">str</span>,</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    tenant_id: <span class="bu">str</span>,</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    system_prompt: <span class="bu">str</span> <span class="op">=</span> <span class="st">&quot;&quot;</span>,</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    model: <span class="bu">str</span> <span class="op">=</span> <span class="st">&quot;gpt-4&quot;</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># check cache first — no LLM call if hit</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    cached <span class="op">=</span> cache.get(query, tenant_id)</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> cached:</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">&quot;response&quot;</span>: cached, <span class="st">&quot;source&quot;</span>: <span class="st">&quot;cache&quot;</span>, <span class="st">&quot;tokens_used&quot;</span>: <span class="dv">0</span>}</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># miss — call the model</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>    completion <span class="op">=</span> openai_client.chat.completions.create(</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>        model<span class="op">=</span>model,</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>        messages<span class="op">=</span>[</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a>            {<span class="st">&quot;role&quot;</span>: <span class="st">&quot;system&quot;</span>, <span class="st">&quot;content&quot;</span>: system_prompt},</span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>            {<span class="st">&quot;role&quot;</span>: <span class="st">&quot;user&quot;</span>,   <span class="st">&quot;content&quot;</span>: query}</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>    response_text <span class="op">=</span> completion.choices[<span class="dv">0</span>].message.content</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>    token_count   <span class="op">=</span> completion.usage.total_tokens</span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a>    <span class="co"># store for future queries</span></span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a>    cache.<span class="bu">set</span>(query, response_text, tenant_id, model, token_count)</span>
+<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">&quot;response&quot;</span>: response_text, <span class="st">&quot;source&quot;</span>: <span class="st">&quot;llm&quot;</span>, <span class="st">&quot;tokens_used&quot;</span>: token_count}</span></code></pre></div>
+<h3 id="choosing-your-similarity-threshold">Choosing Your Similarity
+Threshold</h3>
+<p>The threshold is the most consequential parameter to tune. Too low
+and you return wrong cached answers. Too high and you capture almost no
+repeat queries.</p>
+<pre><code>Threshold    Behaviour                     Risk
+──────────────────────────────────────────────────────────────
+0.70         Aggressive — many hits         High false positive rate
+                                            Returns wrong answers for
+                                            distinct but nearby questions
+
+0.85         Moderate                       Some false positives
+                                            on ambiguous queries
+
+0.92         Conservative — recommended     Rarely returns wrong answer
+                                            Good hit rate on repeat queries
+
+0.98         Very conservative             Near-zero hit rate in practice
+                                            Almost exact phrase matching only</code></pre>
+<p><strong>Domain guidance:</strong> - Factual questions tied to
+specific data (revenue figures, inventory counts): use
+<code>0.95+</code> - General analytical questions (trends, patterns,
+summaries): use <code>0.88–0.92</code> - Creative or open-ended
+questions: semantic caching is usually not appropriate</p>
+<h2 id="part-8-the-complete-stack">Part 8: The Complete Stack</h2>
+<p>Here is the full retrieval pipeline from user query to LLM response,
+with every layer in place:</p>
+<figure>
+<img src="figs/pgvector-stack.png"
+alt="Complete RAG retrieval pipeline: user query through semantic cache hit/miss, hybrid BM25+HNSW retrieval, context assembly, LLM gateway, and response" />
+<figcaption aria-hidden="true">Complete RAG retrieval pipeline: user
+query through semantic cache hit/miss, hybrid BM25+HNSW retrieval,
+context assembly, LLM gateway, and response</figcaption>
+</figure>
+<h2 id="key-takeaways">Key Takeaways</h2>
+<p><strong>The brute force wall is real.</strong> O(n) vector search is
+not a performance problem at scale; it is a viability problem. You need
+an index before you go anywhere near production.</p>
+<p><strong>LSH introduced the right idea.</strong> Engineering hash
+collisions for similar vectors (not despite similarity but because of
+it) is the conceptual leap that every modern vector index builds on.
+Understanding LSH makes HNSW and IVFFlat intuitive.</p>
+<p><strong>IVFFlat vs HNSW is a data-change question.</strong> IVFFlat
+clusters are fixed at build time and degrade as data arrives. HNSW
+inserts new nodes without rebuilding. If your data is static and large,
+IVFFlat. If data arrives continuously, HNSW.</p>
+<p><strong>Vector search and BM25 cover different failure
+modes.</strong> Vector search misses exact identifiers. BM25 misses
+paraphrases. Hybrid search with RRF fusion covers both. The weight split
+depends on your query distribution.</p>
+<p><strong>Semantic caching is a force multiplier, not an
+optimisation.</strong> It changes the cost structure of the most
+expensive operation (the LLM call) from pay-per-query to
+pay-per-unique-semantic-query. In multi-tenant systems with similar
+query patterns across tenants, this can cut LLM costs by 25–40%.</p>
+<h2 id="further-reading">Further Reading</h2>
+<ul>
+<li><a href="https://github.com/pgvector/pgvector">pgvector source and
+documentation</a></li>
+<li><a href="https://arxiv.org/abs/1603.09320">HNSW: Efficient and
+Robust Approximate Nearest Neighbour Search, Malkov &amp; Yashunin
+(2018)</a></li>
+<li><a
+href="https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf">Reciprocal
+Rank Fusion outperforms Condorcet and Individual Rank Learning Methods,
+Cormack et al. (2009)</a></li>
+<li><a href="https://huggingface.co/spaces/mteb/leaderboard">MTEB
+Leaderboard, embedding model benchmarks</a></li>
+</ul>
+<p><em>The system described in this post (400+ tenants, 10M+ vectors,
+sub-100ms retrieval) was built using pgvector with HNSW indexing, hybrid
+BM25 + cosine search, and semantic caching layered on top. The 30%
+reduction in LLM calls came almost entirely from the semantic cache
+across tenants asking structurally identical analytics
+questions.</em></p>
+<p><strong>Tags</strong>: <code>vector-search</code>,
+<code>pgvector</code>, <code>RAG</code>, <code>HNSW</code>,
+<code>machine-learning</code>, <code>python</code>,
+<code>postgresql</code>, <code>LLM</code></p>
+</body>
+</html>

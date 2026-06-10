@@ -754,54 +754,7 @@ Threshold    Behaviour                     Risk
 
 Here is the full retrieval pipeline from user query to LLM response, with every layer in place:
 
-```
-User query: "What were Merchant A's top products in Q3?"
-                          │
-                          ▼
-            ┌─────────────────────────────┐
-            │      Semantic Cache         │
-            │  1. embed query             │
-            │  2. HNSW search cache table │
-            │  3. similarity >= threshold?│
-            └───────────┬─────────────────┘
-                        │
-          ┌─────────────┴─────────────┐
-        HIT                         MISS
-          │                           │
-          ▼                           ▼
-   Return cached             Hybrid Retrieval
-   response                  ┌──────────────────┐
-   tokens_used = 0           │ BM25 search (k=10)│
-                             │ +                 │
-                             │ HNSW vector (k=10)│
-                             │        ↓          │
-                             │  RRF fusion       │
-                             │        ↓          │
-                             │  top 5 chunks     │
-                             └────────┬──────────┘
-                                      │
-                                      ▼
-                             Context Assembly
-                             ┌──────────────────┐
-                             │  system prompt   │
-                             │ + retrieved chunks│
-                             │ + conversation    │
-                             │   history         │
-                             │ + user query      │
-                             └────────┬──────────┘
-                                      │
-                                      ▼
-                             LLM Gateway
-                             ┌──────────────────┐
-                             │ OpenAI /          │
-                             │ Anthropic /       │
-                             │ Bedrock           │
-                             └────────┬──────────┘
-                                      │
-                                      ▼
-                             Store in semantic cache
-                             Return response to user
-```
+![Complete RAG retrieval pipeline: user query through semantic cache hit/miss, hybrid BM25+HNSW retrieval, context assembly, LLM gateway, and response](figs/pgvector-stack.png)
 
 
 ## Key Takeaways
